@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/OctaneAL/ETH-Tracker/internal/models"
@@ -45,19 +46,44 @@ func (db *DB) SaveTransaction(ctx context.Context, transaction *models.Transacti
 	return err
 }
 
-func (db *DB) GetAllTransactions(ctx context.Context) ([]models.TransactionData, error) {
-	rows, err := db.Pool.Query(ctx, `
+func (db *DB) GetTransactionsWithFilters(ctx context.Context, sender, recipient, transactionHash string) ([]models.TransactionData, error) {
+	var filters []string
+	var args []interface{}
+
+	if sender != "" {
+		filters = append(filters, "sender = $"+fmt.Sprint(len(args)+1))
+		args = append(args, sender)
+	}
+	if recipient != "" {
+		filters = append(filters, "recipient = $"+fmt.Sprint(len(args)+1))
+		args = append(args, recipient)
+	}
+	if transactionHash != "" {
+		filters = append(filters, "transaction_hash = $"+fmt.Sprint(len(args)+1))
+		args = append(args, transactionHash)
+	}
+
+	whereClause := ""
+	if len(filters) > 0 {
+		whereClause = "WHERE " + strings.Join(filters, " AND ")
+	}
+
+	query := fmt.Sprintf(`
 		SELECT balance_wei, sender, recipient, transaction_hash, transaction_index 
 		FROM transactions 
-		ORDER BY id 
+		%s
+		ORDER BY id
 		LIMIT 100
-	`)
+	`, whereClause)
+
+	rows, err := db.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	var transactions []models.TransactionData
+
 	for rows.Next() {
 		var transaction models.TransactionData
 		var balanceStr string

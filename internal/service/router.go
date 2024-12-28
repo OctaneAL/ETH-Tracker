@@ -21,7 +21,7 @@ func (s *service) router() chi.Router {
 	)
 
 	r.Route("/integrations/ETH-Tracker", func(r chi.Router) {
-		r.Get("/transactions", handlers.GetTransactions)
+		r.Get("/transactions", handlers.GetFilteredTransactions)
 	})
 
 	return r

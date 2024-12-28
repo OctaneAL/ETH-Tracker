@@ -177,12 +177,14 @@ func getTransactionByHash(txHash, httpsURL string) *models.TransactionData {
 		return nil
 	}
 
+	// log.Println(result)
+
 	sender := result["from"].(string)
 	recipient := result["to"].(string)
 	transactionHash := result["hash"].(string)
-	transactionIndex := 0
+	transactionIndex := "0x0"
 	if result["transactionIndex"] != nil {
-		transactionIndex = int(result["transactionIndex"].(float64))
+		transactionIndex = result["transactionIndex"].(string)
 	}
 
 	transactionData := models.TransactionData{

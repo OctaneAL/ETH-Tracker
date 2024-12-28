@@ -7,5 +7,5 @@ type TransactionData struct {
 	Sender           string  `json:"from"`
 	Recipient        string  `json:"to"`
 	TransactionHash  string  `json:"hash"`
-	TransactionIndex int     `json:"transactionIndex"`
+	TransactionIndex string  `json:"transactionIndex"`
 }

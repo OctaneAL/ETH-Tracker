@@ -3,11 +3,11 @@
 create table transactions
 (
     id                 bigserial primary key not null,
-    balance_wei            numeric(78, 0)       not null,
+    balance_wei        numeric(78, 0)       not null,
     sender             varchar(42)          not null,
     recipient          varchar(42)          not null,
     transaction_hash   varchar(66)          not null unique,
-    transaction_index  int                  ,
+    transaction_index  varchar(66)          ,
     timestamp          timestamp without time zone default now()
 );
 

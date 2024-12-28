@@ -14,4 +14,6 @@ FROM alpine:3.9
 COPY --from=buildbase /usr/local/bin/ETH-Tracker /usr/local/bin/ETH-Tracker
 RUN apk add --no-cache ca-certificates
 
-ENTRYPOINT ["ETH-Tracker"]
+EXPOSE 8080
+
+ENTRYPOINT ["sh", "-c", "ETH-Tracker migrate up && ETH-Tracker run service"]

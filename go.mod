@@ -1,6 +1,6 @@
 module github.com/OctaneAL/ETH-Tracker
 
-go 1.23.4
+go 1.20
 
 require (
 	github.com/alecthomas/kingpin v2.2.6+incompatible

@@ -1,0 +1,45 @@
+version: '3.8'
+
+name: eth-tracker
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${PG_DBNAME}
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+    networks:
+      - server-side
+    ports:
+      - 2077:5432
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "postgres", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: octaneal/eth-tracker:latest
+    environment:
+      - KV_VIPER_FILE=/app/config.local.yaml
+    networks:
+      - client-side
+      - server-side
+    volumes:
+      - backend-cache:/code/target
+      - ./config.local.yaml:/app/config.local.yaml
+    depends_on:
+      - db
+    ports:
+      - 8000:8000
+
+volumes:
+  db-data:
+  backend-cache:
+
+networks:
+  server-side:
+  client-side:

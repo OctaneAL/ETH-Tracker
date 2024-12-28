@@ -13,6 +13,11 @@ type Config interface {
 	pgdb.Databaser
 	types.Copuser
 	comfig.Listenerer
+	DatabaseURL() string
+	GetInfuraWsEndpoint() string
+	GetInfuraHttpsEndpoint() string
+	GetInfuraAPIKey() string
+	GetApiTokenAddress() string
 }
 
 type config struct {
@@ -21,6 +26,46 @@ type config struct {
 	types.Copuser
 	comfig.Listenerer
 	getter kv.Getter
+}
+
+func (c *config) DatabaseURL() string {
+	dbMap, err := kv.MustFromEnv().GetStringMap("db")
+	if err != nil {
+		panic(err)
+	}
+	return dbMap["url"].(string)
+}
+
+func (c *config) GetInfuraWsEndpoint() string {
+	dbMap, err := kv.MustFromEnv().GetStringMap("api")
+	if err != nil {
+		panic(err)
+	}
+	return dbMap["websocket_endpoint"].(string)
+}
+
+func (c *config) GetInfuraHttpsEndpoint() string {
+	dbMap, err := kv.MustFromEnv().GetStringMap("api")
+	if err != nil {
+		panic(err)
+	}
+	return dbMap["https_endpoint"].(string)
+}
+
+func (c *config) GetInfuraAPIKey() string {
+	dbMap, err := kv.MustFromEnv().GetStringMap("api")
+	if err != nil {
+		panic(err)
+	}
+	return dbMap["key"].(string)
+}
+
+func (c *config) GetApiTokenAddress() string {
+	dbMap, err := kv.MustFromEnv().GetStringMap("api")
+	if err != nil {
+		panic(err)
+	}
+	return dbMap["token_address"].(string)
 }
 
 func New(getter kv.Getter) Config {

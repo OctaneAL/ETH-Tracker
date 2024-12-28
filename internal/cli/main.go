@@ -1,12 +1,45 @@
 package cli
 
 import (
+	"context"
+	"log"
+	"sync"
+
 	"github.com/OctaneAL/ETH-Tracker/internal/config"
+	"github.com/OctaneAL/ETH-Tracker/internal/db"
 	"github.com/OctaneAL/ETH-Tracker/internal/service"
+	"github.com/OctaneAL/ETH-Tracker/internal/service/handlers"
+	"github.com/OctaneAL/ETH-Tracker/internal/service/websocket"
 	"github.com/alecthomas/kingpin"
 	"gitlab.com/distributed_lab/kit/kv"
 	"gitlab.com/distributed_lab/logan/v3"
 )
+
+func RunServiceCommand(cfg config.Config) {
+	var wg sync.WaitGroup
+
+	// ctx, _ := context.WithCancel(context.Background())
+
+	ctx := handlers.CtxDB(context.Background(), db.NewDB(cfg.DatabaseURL()))(context.Background())
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		log.Println("Starting service...")
+		service.Run(cfg)
+		log.Println("Service stopped.")
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		log.Println("Starting WebSocket subscription...")
+		websocket.SubscribeToLogs(ctx, cfg)
+		log.Println("WebSocket subscription stopped.")
+	}()
+
+	wg.Wait()
+}
 
 func Run(args []string) bool {
 	log := logan.New()
@@ -39,7 +72,8 @@ func Run(args []string) bool {
 
 	switch cmd {
 	case serviceCmd.FullCommand():
-		service.Run(cfg)
+		RunServiceCommand(cfg)
+		// service.Run(cfg)
 	case migrateUpCmd.FullCommand():
 		err = MigrateUp(cfg)
 	case migrateDownCmd.FullCommand():

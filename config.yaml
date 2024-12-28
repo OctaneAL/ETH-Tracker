@@ -5,6 +5,12 @@ log:
 db:
   url: db_url
 
+api:
+  websocket_endpoint: "wss://mainnet.infura.io/ws/v3/"
+  https_endpoint: "https://mainnet.infura.io/v3/"
+  key: "your_api_key"
+  token_address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB4" -- f.e. USDC token address
+
 listener:
   addr: :8000
 

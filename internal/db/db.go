@@ -46,7 +46,7 @@ func (db *DB) SaveTransaction(ctx context.Context, transaction *models.Transacti
 	return err
 }
 
-func (db *DB) GetTransactionsWithFilters(ctx context.Context, sender, recipient, transactionHash string) ([]models.TransactionData, error) {
+func (db *DB) GetTransactionsWithFilters(ctx context.Context, sender, recipient, transactionHash string) ([]models.TransactionDataWithTimestamp, error) {
 	var filters []string
 	var args []interface{}
 
@@ -69,7 +69,7 @@ func (db *DB) GetTransactionsWithFilters(ctx context.Context, sender, recipient,
 	}
 
 	query := fmt.Sprintf(`
-		SELECT balance_wei, sender, recipient, transaction_hash, transaction_index 
+		SELECT balance_wei, sender, recipient, transaction_hash, transaction_index, timestamp
 		FROM transactions 
 		%s
 		ORDER BY id
@@ -82,12 +82,12 @@ func (db *DB) GetTransactionsWithFilters(ctx context.Context, sender, recipient,
 	}
 	defer rows.Close()
 
-	var transactions []models.TransactionData
+	var transactions []models.TransactionDataWithTimestamp
 
 	for rows.Next() {
-		var transaction models.TransactionData
+		var transaction models.TransactionDataWithTimestamp
 		var balanceStr string
-		err := rows.Scan(&balanceStr, &transaction.Sender, &transaction.Recipient, &transaction.TransactionHash, &transaction.TransactionIndex)
+		err := rows.Scan(&balanceStr, &transaction.Sender, &transaction.Recipient, &transaction.TransactionHash, &transaction.TransactionIndex, &transaction.Timestamp)
 		if err != nil {
 			log.Printf("Error scanning field: %v \n", err)
 			return nil, err
@@ -102,6 +102,7 @@ func (db *DB) GetTransactionsWithFilters(ctx context.Context, sender, recipient,
 	}
 
 	if err := rows.Err(); err != nil {
+		log.Printf("Error after idk what: %v \n", err)
 		return nil, err
 	}
 

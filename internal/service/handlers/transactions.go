@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
@@ -18,6 +19,7 @@ func GetFilteredTransactions(w http.ResponseWriter, r *http.Request) {
 
 	transactions, err := database.GetTransactionsWithFilters(r.Context(), sender, recipient, transactionHash)
 	if err != nil {
+		log.Printf("%v", err)
 		ape.RenderErr(w, []*jsonapi.ErrorObject{problems.InternalError()}...)
 		return
 	}

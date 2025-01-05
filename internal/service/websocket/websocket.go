@@ -2,15 +2,14 @@ package websocket
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"log"
 	"math/big"
 	"net/http"
 
 	"github.com/OctaneAL/ETH-Tracker/internal/config"
-	"github.com/OctaneAL/ETH-Tracker/internal/models"
-	"github.com/OctaneAL/ETH-Tracker/internal/service/handlers"
+	"github.com/OctaneAL/ETH-Tracker/internal/data"
+	"github.com/OctaneAL/ETH-Tracker/internal/data/pg"
 	"github.com/gorilla/websocket"
 )
 
@@ -37,7 +36,7 @@ type EventData struct {
 	} `json:"params"`
 }
 
-func SubscribeToLogs(ctx context.Context, cfg config.Config) {
+func SubscribeToLogs(cfg config.Config) {
 	ws_endpoint := cfg.GetInfuraWsEndpoint()
 	https_endpoint := cfg.GetInfuraHttpsEndpoint()
 
@@ -96,41 +95,37 @@ func SubscribeToLogs(ctx context.Context, cfg config.Config) {
 
 	log.Println("Listening for events...")
 
-	database := handlers.DB(ctx)
+	// database := handlers.DB(ctx)
+	database := pg.NewMasterQ(cfg.DB())
 
 	for {
-		select {
-		case <-ctx.Done():
-			// log.Println("Stopping WebSocket listener.")
+		_, eventResponse, err := conn.ReadMessage()
+		if err != nil {
+			// log.Printf("Failed to read event data: %v\n", err)
 			return
-		default:
-			_, eventResponse, err := conn.ReadMessage()
-			if err != nil {
-				// log.Printf("Failed to read event data: %v\n", err)
-				return
-			}
+		}
 
-			var eventData EventData
-			err = json.Unmarshal(eventResponse, &eventData)
-			if err != nil {
-				// log.Printf("Failed to unmarshal event data: %v\n", err)
-				continue
-			}
+		var eventData EventData
+		err = json.Unmarshal(eventResponse, &eventData)
+		if err != nil {
+			// log.Printf("Failed to unmarshal event data: %v\n", err)
+			continue
+		}
 
-			// log.Printf("Received event data: %+v\n", eventData)
+		// log.Printf("Received event data: %+v\n", eventData)
 
-			transactionDetails := getTransactionByHash(eventData.Params.Result, httpsURL)
+		transactionDetails := getTransactionByHash(eventData.Params.Result, httpsURL)
 
-			// log.Printf("Transaction details: %+v\n", transactionDetails)
+		// log.Printf("Transaction details: %+v\n", transactionDetails)
 
-			if transactionDetails != nil {
-				database.SaveTransaction(ctx, transactionDetails)
-			}
+		if transactionDetails != nil {
+			// database.SaveTransaction(ctx, transactionDetails)
+			database.Trans().Insert(*transactionDetails)
 		}
 	}
 }
 
-func getTransactionByHash(txHash, httpsURL string) *models.TransactionData {
+func getTransactionByHash(txHash, httpsURL string) *data.InsertTransaction {
 	requestData := Request{
 		Jsonrpc: "2.0",
 		ID:      1,
@@ -187,8 +182,8 @@ func getTransactionByHash(txHash, httpsURL string) *models.TransactionData {
 		transactionIndex = result["transactionIndex"].(string)
 	}
 
-	transactionData := models.TransactionData{
-		BalanceNumeric:   *balanceNumeric,
+	transactionData := data.InsertTransaction{
+		BalanceNumeric:   balanceNumeric.String(),
 		Sender:           sender,
 		Recipient:        recipient,
 		TransactionHash:  transactionHash,

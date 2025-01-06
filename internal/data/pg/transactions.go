@@ -2,7 +2,7 @@ package pg
 
 import (
 	"database/sql"
-	"time"
+	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/OctaneAL/ETH-Tracker/internal/data"
@@ -39,7 +39,7 @@ func (q *transactionQ) Get() (*data.ReturnTransaction, error) {
 
 func (q *transactionQ) Select() ([]data.ReturnTransaction, error) {
 	var result []data.ReturnTransaction
-	err := q.db.Select(&result, q.sql.Select("*").From(transactionsTableName).OrderBy("id").Limit(100))
+	err := q.db.Select(&result, q.sql.Select("*").From(transactionsTableName).OrderBy("id DESC").Limit(100))
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -81,13 +81,33 @@ func (q *transactionQ) Insert(value data.InsertTransaction) (*data.InsertTransac
 // 	return nil
 // }
 
-func (q *transactionQ) FilterByAddress(addresses ...string) data.TransactionQ {
-	pred := sq.Eq{"address": addresses}
+// func (q *transactionQ) FilterByAddress(addresses ...string) data.TransactionQ {
+// 	pred := sq.Eq{"address": addresses}
+// 	q.sql = q.sql.Where(pred)
+// 	return q
+// }
+
+func (q *transactionQ) FilterBySenderRecipientHash(sender, recipient, transactionHash string) data.TransactionQ {
+	pred := sq.Eq{}
+	if sender != "" {
+		pred["sender"] = sender
+	}
+	if recipient != "" {
+		pred["recipient"] = recipient
+	}
+	if transactionHash != "" {
+		pred["transaction_hash"] = transactionHash
+	}
+
+	fmt.Println(sender, recipient, transactionHash)
+
+	fmt.Println(pred.ToSql())
+
 	q.sql = q.sql.Where(pred)
 	return q
 }
 
-func (q *transactionQ) FilterExpired() data.TransactionQ {
-	q.sql = sq.StatementBuilder.Where("expiresat < ?", time.Now().Unix())
-	return q
-}
+// func (q *transactionQ) FilterExpired() data.TransactionQ {
+// 	q.sql = sq.StatementBuilder.Where("expiresat < ?", time.Now().Unix())
+// 	return q
+// }

@@ -95,7 +95,6 @@ func SubscribeToLogs(cfg config.Config) {
 
 	log.Println("Listening for events...")
 
-	// database := handlers.DB(ctx)
 	database := pg.NewMasterQ(cfg.DB())
 
 	for {
@@ -119,7 +118,6 @@ func SubscribeToLogs(cfg config.Config) {
 		// log.Printf("Transaction details: %+v\n", transactionDetails)
 
 		if transactionDetails != nil {
-			// database.SaveTransaction(ctx, transactionDetails)
 			database.Trans().Insert(*transactionDetails)
 		}
 	}

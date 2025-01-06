@@ -7,8 +7,7 @@ type TransactionQ interface {
 	Select() ([]ReturnTransaction, error)
 	Insert(value InsertTransaction) (*InsertTransaction, error)
 
-	FilterByAddress(addresses ...string) TransactionQ
-	FilterExpired() TransactionQ
+	FilterBySenderRecipientHash(sender, recipient, transactionHash string) TransactionQ
 }
 
 type InsertTransaction struct {
@@ -28,8 +27,4 @@ type ReturnTransaction struct {
 	TransactionHash  string    `db:"transaction_hash" structs:"transaction_hash" json:"hash"`
 	TransactionIndex string    `db:"transaction_index" structs:"transaction_index" json:"transactionIndex"`
 	Timestamp        time.Time `db:"timestamp" structs:"timestamp" json:"timestamp"`
-
-	// Message string `db:"message" structs:"message"`
-	// Expires int64  `db:"expiresat" structs:"expiresat"`
-	// Address string `db:"address" structs:"address"`
 }

@@ -1,14 +1,11 @@
 package cli
 
 import (
-	"context"
 	"log"
 	"sync"
 
 	"github.com/OctaneAL/ETH-Tracker/internal/config"
-	"github.com/OctaneAL/ETH-Tracker/internal/db"
 	"github.com/OctaneAL/ETH-Tracker/internal/service"
-	"github.com/OctaneAL/ETH-Tracker/internal/service/handlers"
 	"github.com/OctaneAL/ETH-Tracker/internal/service/websocket"
 	"github.com/alecthomas/kingpin"
 	"gitlab.com/distributed_lab/kit/kv"
@@ -20,7 +17,7 @@ func RunServiceCommand(cfg config.Config) {
 
 	// ctx, _ := context.WithCancel(context.Background())
 
-	ctx := handlers.CtxDB(context.Background(), db.NewDB(cfg.DatabaseURL()))(context.Background())
+	// ctx := handlers.CtxDB(context.Background(), db.NewDB(cfg.DatabaseURL()))(context.Background())
 
 	wg.Add(1)
 	go func() {
@@ -34,7 +31,7 @@ func RunServiceCommand(cfg config.Config) {
 	go func() {
 		defer wg.Done()
 		log.Println("Starting WebSocket subscription...")
-		websocket.SubscribeToLogs(ctx, cfg)
+		websocket.SubscribeToLogs(cfg)
 		log.Println("WebSocket subscription stopped.")
 	}()
 

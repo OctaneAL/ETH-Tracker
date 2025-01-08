@@ -1,8 +1,8 @@
 package websocket
 
 import (
-	"context"
-	"fmt"
+	"bytes"
+	"encoding/json"
 	"log"
 
 	"github.com/OctaneAL/ETH-Tracker/internal/config"
@@ -38,6 +38,7 @@ type EventData struct {
 }
 
 func SubscribeToLogs(cfg config.Config) {
+func SubscribeToLogs(cfg config.Config) {
 	ws_endpoint := cfg.GetInfuraWsEndpoint()
 	// https_endpoint := cfg.GetInfuraHttpsEndpoint()
 
@@ -70,130 +71,58 @@ func SubscribeToLogs(cfg config.Config) {
 	if err != nil {
 		log.Fatalf("Failed to watch Transfer events: %v", err)
 	}
+	log.Printf("Subscription confirmed: %+v\n", confirmationData)
 
-	fmt.Println("Good shit - good going")
+	if confirmationData.Result == nil {
+		log.Println("Failed to create subscription.")
+		return
+	}
+
+	log.Println("Listening for events...")
+
+	database := handlers.DB(ctx)
 
 	for {
 		select {
-		case err := <-subscription.Err():
-			log.Printf("Subscription error: %v", err)
+		case <-ctx.Done():
+			// log.Println("Stopping WebSocket listener.")
 			return
-		case event := <-transferChan:
-			log.Printf("Transfer event received: From %s, To %s, Value %d",
-				event.From.Hex(), event.To.Hex(), event.Value)
-
-			transactionDetails, err := filterer.ParseTransfer(event.Raw)
+		default:
+			_, eventResponse, err := conn.ReadMessage()
 			if err != nil {
-				log.Fatalf("Failed to Parse Tranfer: %v", err)
+				// log.Printf("Failed to read event data: %v\n", err)
+				return
 			}
 
-			transaction := data.InsertTransaction{
-				BalanceNumeric:   transactionDetails.Value.String(),
-				Sender:           transactionDetails.From.String(),
-				Recipient:        transactionDetails.To.String(),
-				TransactionHash:  event.Raw.TxHash.String(),
-				TransactionIndex: string(event.Raw.TxIndex),
+			var eventData EventData
+			err = json.Unmarshal(eventResponse, &eventData)
+			if err != nil {
+				// log.Printf("Failed to unmarshal event data: %v\n", err)
+				continue
 			}
 
-			if transaction.BalanceNumeric != "0" {
-				database.Trans().Insert(transaction)
+			// log.Printf("Received event data: %+v\n", eventData)
+
+			transactionDetails := getTransactionByHash(eventData.Params.Result, httpsURL)
+
+		// log.Printf("Transaction details: %+v\n", transactionDetails)
+
+			if transactionDetails != nil {
+				database.SaveTransaction(ctx, transactionDetails)
 			}
-
-			// transactionDetails := getTransactionByAddress()
-			// transactionDetails := getTransactionByHash(eventData.Params.Result, httpsURL)
-
-			// log.Printf("Transaction details: %+v\n", transactionDetails)
-
-			// if transactionDetails != nil {
-			// 	database.Trans().Insert(*transactionDetails)
-			// }
-
 		}
 	}
-
-	// conn, _, err := websocket.DefaultDialer.Dial(websocketURL, nil)
-	// if err != nil {
-	// 	log.Fatalf("Failed to connect to WebSocket: %v", err)
-	// }
-	// defer conn.Close()
-
-	// subscriptionData := Request{
-	// 	Jsonrpc: "2.0",
-	// 	ID:      1,
-	// 	Method:  "eth_subscribe",
-	// 	Params: []interface{}{
-	// 		"newPendingTransactions",
-	// 		map[string]interface{}{
-	// 			"address": tokenAddress, // Filter by USDC address
-	// 		},
-	// 	},
-	// }
-
-	// subscriptionJSON, err := json.Marshal(subscriptionData)
-	// if err != nil {
-	// 	log.Fatalf("Failed to marshal subscription data: %v", err)
-	// }
-
-	// err = conn.WriteMessage(websocket.TextMessage, subscriptionJSON)
-	// if err != nil {
-	// 	log.Fatalf("Failed to send subscription request: %v", err)
-	// }
-	// log.Println("Subscription request sent.")
-
-	// _, confirmationResponse, err := conn.ReadMessage()
-	// if err != nil {
-	// 	log.Fatalf("Failed to read confirmation response: %v", err)
-	// }
-
-	// var confirmationData SubscriptionResponse
-	// err = json.Unmarshal(confirmationResponse, &confirmationData)
-	// if err != nil {
-	// 	log.Fatalf("Failed to unmarshal confirmation response: %v", err)
-	// }
-	// log.Printf("Subscription confirmed: %+v\n", confirmationData)
-
-	// if confirmationData.Result == nil {
-	// 	log.Println("Failed to create subscription.")
-	// 	return
-	// }
-
-	// log.Println("Listening for events...")
-
-	// for {
-	// 	_, eventResponse, err := conn.ReadMessage()
-	// 	if err != nil {
-	// 		// log.Printf("Failed to read event data: %v\n", err)
-	// 		return
-	// 	}
-
-	// 	var eventData EventData
-	// 	err = json.Unmarshal(eventResponse, &eventData)
-	// 	if err != nil {
-	// 		// log.Printf("Failed to unmarshal event data: %v\n", err)
-	// 		continue
-	// 	}
-
-	// 	// log.Printf("Received event data: %+v\n", eventData)
-
-	// 	transactionDetails := getTransactionByHash(eventData.Params.Result, httpsURL)
-
-	// 	// log.Printf("Transaction details: %+v\n", transactionDetails)
-
-	// 	if transactionDetails != nil {
-	// 		database.Trans().Insert(*transactionDetails)
-	// 	}
-	// }
 }
 
-// func getTransactionByHash(txHash, httpsURL string) *data.InsertTransaction {
-// 	requestData := Request{
-// 		Jsonrpc: "2.0",
-// 		ID:      1,
-// 		Method:  "eth_getTransactionByHash",
-// 		Params: []interface{}{
-// 			txHash,
-// 		},
-// 	}
+func getTransactionByHash(txHash, httpsURL string) *models.TransactionData {
+	requestData := Request{
+		Jsonrpc: "2.0",
+		ID:      1,
+		Method:  "eth_getTransactionByHash",
+		Params: []interface{}{
+			txHash,
+		},
+	}
 
 // 	requestJSON, err := json.Marshal(requestData)
 // 	if err != nil {
@@ -242,13 +171,13 @@ func SubscribeToLogs(cfg config.Config) {
 // 		transactionIndex = result["transactionIndex"].(string)
 // 	}
 
-// 	transactionData := data.InsertTransaction{
-// 		BalanceNumeric:   balanceNumeric.String(),
-// 		Sender:           sender,
-// 		Recipient:        recipient,
-// 		TransactionHash:  transactionHash,
-// 		TransactionIndex: transactionIndex,
-// 	}
+	transactionData := models.TransactionData{
+		BalanceNumeric:   *balanceNumeric,
+		Sender:           sender,
+		Recipient:        recipient,
+		TransactionHash:  transactionHash,
+		TransactionIndex: transactionIndex,
+	}
 
 // 	return &transactionData
 // }

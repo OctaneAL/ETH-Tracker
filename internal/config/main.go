@@ -18,6 +18,7 @@ type Config interface {
 	GetInfuraHttpsEndpoint() string
 	GetInfuraAPIKey() string
 	GetApiTokenAddress() string
+	GetApiBlockFetchStart() int64
 }
 
 type config struct {
@@ -66,6 +67,15 @@ func (c *config) GetApiTokenAddress() string {
 		panic(err)
 	}
 	return dbMap["token_address"].(string)
+}
+
+func (c *config) GetApiBlockFetchStart() int64 {
+	dbMap, err := kv.MustFromEnv().GetStringMap("api")
+	if err != nil {
+		panic(err)
+	}
+
+	return int64(dbMap["block_fetch_start"].(int))
 }
 
 func New(getter kv.Getter) Config {

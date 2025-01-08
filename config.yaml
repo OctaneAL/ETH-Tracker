@@ -10,6 +10,7 @@ api:
   https_endpoint: "https://mainnet.infura.io/v3/"
   key: "your_api_key"
   token_address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB4" -- f.e. USDC token address
+  block_fetch_start: 21581251 -- block number to start fetching tranasctions from
 
 listener:
   addr: :8000

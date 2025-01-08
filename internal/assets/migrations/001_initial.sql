@@ -7,7 +7,8 @@ create table transactions
     sender             varchar(42)          not null,
     recipient          varchar(42)          not null,
     transaction_hash   varchar(66)          not null unique,
-    transaction_index  varchar(66)          ,
+    transaction_index  bigint               not null,
+    block_number       bigint               not null,
     timestamp          timestamp without time zone default now()
 );
 

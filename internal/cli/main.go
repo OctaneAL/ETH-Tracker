@@ -6,6 +6,7 @@ import (
 
 	"github.com/OctaneAL/ETH-Tracker/internal/config"
 	"github.com/OctaneAL/ETH-Tracker/internal/service"
+	"github.com/OctaneAL/ETH-Tracker/internal/service/blocksync"
 	"github.com/OctaneAL/ETH-Tracker/internal/service/websocket"
 	"github.com/alecthomas/kingpin"
 	"gitlab.com/distributed_lab/kit/kv"
@@ -30,6 +31,10 @@ func RunServiceCommand(cfg config.Config) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		log.Println("Starting block sync...")
+		blocksync.FetchMissedBlocks(cfg)
+		log.Println("Block sync stopped.")
+
 		log.Println("Starting WebSocket subscription...")
 		websocket.SubscribeToLogs(cfg)
 		log.Println("WebSocket subscription stopped.")

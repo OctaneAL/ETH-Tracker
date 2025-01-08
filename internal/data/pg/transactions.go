@@ -24,67 +24,45 @@ type transactionQ struct {
 	sql sq.StatementBuilderType
 }
 
-func (q *transactionQ) Get() (*data.ReturnTransaction, error) {
-	var result data.ReturnTransaction
+func (q *transactionQ) Get() (*data.Transaction, error) {
+	var result data.Transaction
 	err := q.db.Get(&result, q.sql.Select("*").From(transactionsTableName))
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get nonce from db")
+		return nil, errors.Wrap(err, "failed to get transaction from db")
 	}
 	return &result, nil
 }
 
-func (q *transactionQ) Select() ([]data.ReturnTransaction, error) {
-	var result []data.ReturnTransaction
-	err := q.db.Select(&result, q.sql.Select("*").From(transactionsTableName).OrderBy("id DESC").Limit(100))
+func (q *transactionQ) Select() ([]data.Transaction, error) {
+	var result []data.Transaction
+
+	// err := q.db.Select(&result, q.sql.Select("*").From(transactionsTableName).OrderBy("id DESC").Limit(100))
+
+	columns := []string{"balance_wei", "sender", "recipient", "transaction_hash", "transaction_index", "block_number", "timestamp"}
+	err := q.db.Select(&result, q.sql.Select(columns...).From(transactionsTableName).OrderBy("timestamp DESC").Limit(100))
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to select nonces from db")
+		return nil, errors.Wrap(err, "failed to select transactions from db")
 	}
 	return result, nil
 }
 
-func (q *transactionQ) Insert(value data.InsertTransaction) (*data.InsertTransaction, error) {
+func (q *transactionQ) Insert(value data.Transaction) (*data.Transaction, error) {
 	clauses := structs.Map(value)
 
-	var result data.InsertTransaction
+	var result data.Transaction
 	stmt := sq.Insert(transactionsTableName).SetMap(clauses).Suffix("returning *")
 	err := q.db.Get(&result, stmt)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to insert nonce to db")
+		return nil, errors.Wrap(err, "failed to insert transaction to db")
 	}
 	return &result, nil
 }
-
-// func (q *transactionQ) Update(value data.Transaction) (*data.Transaction, error) {
-// 	clauses := structs.Map(value)
-
-// 	var result data.Transaction
-// 	stmt := q.sql.Update(transactionsTableName).SetMap(clauses).Suffix("returning *")
-// 	err := q.db.Get(&result, stmt)
-// 	if err != nil {
-// 		return nil, errors.Wrap(err, "failed to update nonce in db")
-// 	}
-// 	return &result, nil
-// }
-
-// func (q *transactionQ) Delete() error {
-// 	err := q.db.Exec(q.sql.Delete(transactionsTableName))
-// 	if err != nil {
-// 		return errors.Wrap(err, "failed to delete nonces from db")
-// 	}
-// 	return nil
-// }
-
-// func (q *transactionQ) FilterByAddress(addresses ...string) data.TransactionQ {
-// 	pred := sq.Eq{"address": addresses}
-// 	q.sql = q.sql.Where(pred)
-// 	return q
-// }
 
 func (q *transactionQ) FilterBySenderRecipientHash(sender, recipient, transactionHash string) data.TransactionQ {
 	pred := sq.Eq{}
@@ -102,7 +80,13 @@ func (q *transactionQ) FilterBySenderRecipientHash(sender, recipient, transactio
 	return q
 }
 
-// func (q *transactionQ) FilterExpired() data.TransactionQ {
-// 	q.sql = sq.StatementBuilder.Where("expiresat < ?", time.Now().Unix())
-// 	return q
-// }
+func (q *transactionQ) GetLastRecord() (*data.Transaction, error) {
+	var result data.Transaction
+
+	columns := []string{"balance_wei", "sender", "recipient", "transaction_hash", "transaction_index", "block_number", "timestamp"}
+	err := q.db.Get(&result, q.sql.Select(columns...).From(transactionsTableName).OrderBy("timestamp DESC").Limit(1))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get last transaction from db")
+	}
+	return &result, nil
+}

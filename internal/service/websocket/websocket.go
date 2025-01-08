@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/OctaneAL/ETH-Tracker/internal/config"
 	"github.com/OctaneAL/ETH-Tracker/internal/data"
@@ -38,7 +39,7 @@ type EventData struct {
 
 func SubscribeToLogs(cfg config.Config) {
 	ws_endpoint := cfg.GetInfuraWsEndpoint()
-	// https_endpoint := cfg.GetInfuraHttpsEndpoint()
+	// https_endpoint := cfg.GetInfuraHttpSsEndpoint()
 
 	apiKey := cfg.GetInfuraAPIKey()
 
@@ -47,14 +48,14 @@ func SubscribeToLogs(cfg config.Config) {
 	websocketURL := ws_endpoint + apiKey
 	// httpsURL := https_endpoint + apiKey
 
-	client, err := ethclient.Dial(websocketURL)
+	client_ws, err := ethclient.Dial(websocketURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
 
 	contractAddress := common.HexToAddress(tokenAddress)
 
-	filterer, err := erc20.NewStorageFilterer(contractAddress, client)
+	filterer, err := erc20.NewStorageFilterer(contractAddress, client_ws)
 	if err != nil {
 		log.Fatalf("Failed to create filterer: %v", err)
 	}
@@ -69,32 +70,52 @@ func SubscribeToLogs(cfg config.Config) {
 		log.Fatalf("Failed to watch Transfer events: %v", err)
 	}
 
-	for {
-		select {
-		case err := <-subscription.Err():
-			log.Printf("Subscription error: %v", err)
-			return
-		case event := <-transferChan:
-			log.Printf("Transfer event received: From %s, To %s, Value %d",
-				event.From.Hex(), event.To.Hex(), event.Value)
+	go func() {
+		for {
+			select {
+			case err := <-subscription.Err():
+				log.Printf("Subscription error: %v", err)
+				return
+			case event := <-transferChan:
+				log.Printf("Transfer event received: From %s, To %s, Value %d, Block %d",
+					event.From.Hex(), event.To.Hex(), event.Value, event.Raw.BlockNumber)
 
-			transactionDetails, err := filterer.ParseTransfer(event.Raw)
-			if err != nil {
-				log.Fatalf("Failed to Parse Tranfer: %v", err)
+				transactionDetails, err := filterer.ParseTransfer(event.Raw)
+				if err != nil {
+					log.Fatalf("Failed to Parse Tranfer: %v", err)
+				}
+
+				// Takes too much time
+
+				// blockNumber := big.NewInt(int64(event.Raw.BlockNumber))
+				// block, err := client_ws.BlockByNumber(context.Background(), blockNumber)
+				// if err != nil {
+				// 	log.Printf("Failed to fetch block: %v", err)
+				// 	continue
+				// }
+
+				// timestamp := time.Unix(int64(block.Time()), 0)
+				// log.Printf("Timestamp for transfer: %s\n", timestamp)
+
+				timestamp := time.Now()
+
+				transaction := data.Transaction{
+					BalanceNumeric:   transactionDetails.Value.String(),
+					Sender:           transactionDetails.From.String(),
+					Recipient:        transactionDetails.To.String(),
+					TransactionHash:  event.Raw.TxHash.String(),
+					TransactionIndex: int64(event.Raw.TxIndex),
+					BlockNumber:      int64(event.Raw.BlockNumber),
+					Timestamp:        timestamp,
+				}
+
+				if transaction.BalanceNumeric != "0" {
+					database.Trans().Insert(transaction)
+				}
+
 			}
-
-			transaction := data.InsertTransaction{
-				BalanceNumeric:   transactionDetails.Value.String(),
-				Sender:           transactionDetails.From.String(),
-				Recipient:        transactionDetails.To.String(),
-				TransactionHash:  event.Raw.TxHash.String(),
-				TransactionIndex: string(event.Raw.TxIndex),
-			}
-
-			if transaction.BalanceNumeric != "0" {
-				database.Trans().Insert(transaction)
-			}
-
 		}
-	}
+	}()
+
+	select {}
 }

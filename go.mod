@@ -2,8 +2,6 @@ module github.com/OctaneAL/ETH-Tracker
 
 go 1.21
 
-toolchain go1.23.4
-
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/alecthomas/kingpin v2.2.6+incompatible

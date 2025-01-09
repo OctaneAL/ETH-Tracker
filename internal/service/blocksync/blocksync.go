@@ -2,7 +2,6 @@ package blocksync
 
 import (
 	"context"
-	"log"
 
 	"github.com/OctaneAL/ETH-Tracker/internal/config"
 	"github.com/OctaneAL/ETH-Tracker/internal/data/pg"
@@ -13,6 +12,8 @@ import (
 )
 
 func FetchMissedBlocks(cfg config.Config) {
+	logger := cfg.Log()
+
 	client_https := cfg.GetHttpsClient()
 
 	contractAddress := cfg.GetContractAddress()
@@ -27,16 +28,16 @@ func FetchMissedBlocks(cfg config.Config) {
 	}
 	header, err := client_https.HeaderByNumber(context.Background(), nil)
 	if err != nil {
-		log.Fatalf("Failed to get latest block header: %v", err)
+		logger.Fatalf("Failed to get latest block header: %v", err)
 	}
 
-	log.Printf("The latest block number is: %d\n", header.Number.Uint64())
+	logger.Infof("The latest block number is: %d\n", header.Number.Uint64())
 
 	var blockFetchEnd uint64 = header.Number.Uint64()
 
 	filterer, err := erc20.NewStorageFilterer(contractAddress, client_https)
 	if err != nil {
-		log.Fatalf("Failed to create filterer: %v", err)
+		logger.Fatalf("Failed to create filterer: %v", err)
 	}
 
 	// Failed to filter Transfer events: query returned more than 10000 results. Try with this block range [0x149524A, 0x1495432].
@@ -49,11 +50,11 @@ func FetchMissedBlocks(cfg config.Config) {
 		End:   &blockFetchEnd,
 	}
 
-	log.Printf("Starting at block %d, ending at block %d\n", blockFetchStart, blockFetchEnd)
+	logger.Infof("Starting at block %d, ending at block %d\n", blockFetchStart, blockFetchEnd)
 
 	iter, err := filterer.FilterTransfer(filterOpts, nil, nil)
 	if err != nil {
-		log.Fatalf("Failed to filter Transfer events: %v", err)
+		logger.Fatalf("Failed to filter Transfer events: %v", err)
 	}
 
 	blockHash := models.BlockHash{
@@ -61,10 +62,10 @@ func FetchMissedBlocks(cfg config.Config) {
 		Timestamp:   nil,
 	}
 
-	log.Println("Transfer Events:")
+	logger.Info("Transfer Events:")
 	for iter.Next() {
 		event := iter.Event
 
-		utils.ProcessTransferEvent(event, filterer, database, &blockHash, client_https)
+		utils.ProcessTransferEvent(event, filterer, database, &blockHash, client_https, logger)
 	}
 }

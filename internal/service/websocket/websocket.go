@@ -2,7 +2,6 @@ package websocket
 
 import (
 	"context"
-	"log"
 
 	"github.com/OctaneAL/ETH-Tracker/internal/config"
 	"github.com/OctaneAL/ETH-Tracker/internal/data/pg"
@@ -36,20 +35,22 @@ type EventData struct {
 }
 
 func SubscribeToLogs(cfg config.Config) {
+	logger := cfg.Log()
+
 	client_ws := cfg.GetWsClient()
 
 	contractAddress := cfg.GetContractAddress()
 
 	filterer, err := erc20.NewStorageFilterer(contractAddress, client_ws)
 	if err != nil {
-		log.Fatalf("Failed to create filterer: %v", err)
+		logger.Fatalf("Failed to create filterer: %v", err)
 	}
 
 	database := pg.NewMasterQ(cfg.DB())
 
 	lastTransaction, err := database.Trans().GetLastRecord()
 	if err != nil {
-		log.Fatalf("Failed to get last transaction: %v", err)
+		logger.Fatalf("Failed to get last transaction: %v", err)
 	}
 	blockFetchStart := uint64(lastTransaction.BlockNumber)
 
@@ -59,7 +60,7 @@ func SubscribeToLogs(cfg config.Config) {
 		Context: context.Background(),
 	}, transferChan, nil, nil)
 	if err != nil {
-		log.Fatalf("Failed to watch Transfer events: %v", err)
+		logger.Fatalf("Failed to watch Transfer events: %v", err)
 	}
 
 	blockHash := models.BlockHash{
@@ -71,10 +72,10 @@ func SubscribeToLogs(cfg config.Config) {
 		for {
 			select {
 			case err := <-subscription.Err():
-				log.Printf("Subscription error: %v", err)
+				logger.Infof("Subscription error: %v", err)
 				return
 			case event := <-transferChan:
-				utils.ProcessTransferEvent(event, filterer, database, &blockHash, client_ws)
+				utils.ProcessTransferEvent(event, filterer, database, &blockHash, client_ws, logger)
 			}
 		}
 	}()

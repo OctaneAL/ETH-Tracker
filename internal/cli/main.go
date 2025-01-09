@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"log"
 	"sync"
 
 	"github.com/OctaneAL/ETH-Tracker/internal/config"
@@ -16,6 +15,8 @@ import (
 func RunServiceCommand(cfg config.Config) {
 	var wg sync.WaitGroup
 
+	logger := cfg.Log()
+
 	// ctx, _ := context.WithCancel(context.Background())
 
 	// ctx := handlers.CtxDB(context.Background(), db.NewDB(cfg.DatabaseURL()))(context.Background())
@@ -23,21 +24,21 @@ func RunServiceCommand(cfg config.Config) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		log.Println("Starting service...")
+		logger.Info("Starting service...")
 		service.Run(cfg)
-		log.Println("Service stopped.")
+		logger.Info("Service stopped.")
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		log.Println("Starting block sync...")
+		logger.Info("Starting block sync...")
 		blocksync.FetchMissedBlocks(cfg)
-		log.Println("Block sync stopped.")
+		logger.Info("Block sync stopped.")
 
-		log.Println("Starting WebSocket subscription...")
+		logger.Info("Starting WebSocket subscription...")
 		websocket.SubscribeToLogs(cfg)
-		log.Println("WebSocket subscription stopped.")
+		logger.Info("WebSocket subscription stopped.")
 	}()
 
 	wg.Wait()

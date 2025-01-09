@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"log"
 	"net/http"
 	"strings"
 
@@ -12,6 +11,7 @@ import (
 
 func GetFilteredTransactions(w http.ResponseWriter, r *http.Request) {
 	database := DB(r)
+	logger := Log(r)
 
 	sender := strings.TrimSpace(r.URL.Query().Get("sender"))
 	recipient := strings.TrimSpace(r.URL.Query().Get("recipient"))
@@ -20,7 +20,7 @@ func GetFilteredTransactions(w http.ResponseWriter, r *http.Request) {
 	transactions, err := database.Trans().FilterBySenderRecipientHash(sender, recipient, transactionHash).Select()
 
 	if err != nil {
-		log.Printf("%v", err)
+		logger.Infof("%v", err)
 		ape.RenderErr(w, []*jsonapi.ErrorObject{problems.InternalError()}...)
 		return
 	}

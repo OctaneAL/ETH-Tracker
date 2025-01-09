@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"log"
 	"math/big"
 	"time"
 
@@ -10,15 +9,16 @@ import (
 	"github.com/OctaneAL/ETH-Tracker/internal/erc20"
 	"github.com/OctaneAL/ETH-Tracker/internal/models"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"gitlab.com/distributed_lab/logan/v3"
 )
 
-func ProcessTransferEvent(event *erc20.StorageTransfer, filterer *erc20.StorageFilterer, database data.MasterQ, blockHash *models.BlockHash, client *ethclient.Client) {
-	log.Printf("Transfer event received: From %s, To %s, Value %d, Block %d",
+func ProcessTransferEvent(event *erc20.StorageTransfer, filterer *erc20.StorageFilterer, database data.MasterQ, blockHash *models.BlockHash, client *ethclient.Client, logger *logan.Entry) {
+	logger.Infof("Transfer event received: From %s, To %s, Value %d, Block %d",
 		event.From.Hex(), event.To.Hex(), event.Value, event.Raw.BlockNumber)
 
 	transactionDetails, err := filterer.ParseTransfer(event.Raw)
 	if err != nil {
-		log.Fatalf("Failed to Parse Tranfer: %v", err)
+		logger.Fatalf("Failed to Parse Tranfer: %v", err)
 	}
 
 	// Fetch block timestamp
@@ -30,7 +30,7 @@ func ProcessTransferEvent(event *erc20.StorageTransfer, filterer *erc20.StorageF
 	if blockHash.BlockNumber == nil || (blockHash.BlockNumber.Uint64() != blockNumber.Uint64()) {
 		block, err := client.BlockByNumber(context.Background(), blockNumber)
 		if err != nil {
-			log.Printf("Failed to fetch block: %v", err)
+			logger.Infof("Failed to fetch block: %v", err)
 		} else {
 			timestamp = time.Unix(int64(block.Time()), 0)
 		}

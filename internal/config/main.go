@@ -1,8 +1,6 @@
 package config
 
 import (
-	"log"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"gitlab.com/distributed_lab/kit/comfig"
@@ -95,6 +93,8 @@ func (c *config) GetContractAddress() common.Address {
 }
 
 func New(getter kv.Getter) Config {
+	logger := comfig.NewLogger(getter, comfig.LoggerOpts{})
+
 	apiKey := getInfuraAPIKey()
 
 	https_endpoint := getInfuraHttpsEndpoint()
@@ -105,7 +105,7 @@ func New(getter kv.Getter) Config {
 
 	client_https, err := ethclient.Dial(httpsURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to the https Ethereum client: %v", err)
+		logger.Log().Fatalf("Failed to connect to the https Ethereum client: %v", err)
 	}
 
 	ws_endpoint := getInfuraWsEndpoint()
@@ -113,7 +113,7 @@ func New(getter kv.Getter) Config {
 
 	client_ws, err := ethclient.Dial(websocketURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to the WebSocket Ethereum client: %v", err)
+		logger.Log().Fatalf("Failed to connect to the WebSocket Ethereum client: %v", err)
 	}
 
 	return &config{
@@ -121,7 +121,7 @@ func New(getter kv.Getter) Config {
 		Databaser:        pgdb.NewDatabaser(getter),
 		Copuser:          copus.NewCopuser(getter),
 		Listenerer:       comfig.NewListenerer(getter),
-		Logger:           comfig.NewLogger(getter, comfig.LoggerOpts{}),
+		Logger:           logger,
 		client_ws:        client_ws,
 		client_https:     client_https,
 		contract_address: contractAddress,

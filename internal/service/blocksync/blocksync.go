@@ -7,22 +7,12 @@ import (
 	"github.com/OctaneAL/ETH-Tracker/internal/config"
 	"github.com/OctaneAL/ETH-Tracker/internal/data/pg"
 	"github.com/OctaneAL/ETH-Tracker/internal/erc20"
+	"github.com/OctaneAL/ETH-Tracker/internal/models"
 	"github.com/OctaneAL/ETH-Tracker/internal/service/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
 func FetchMissedBlocks(cfg config.Config) {
-	// https_endpoint := cfg.GetInfuraHttpsEndpoint()
-	// apiKey := cfg.GetInfuraAPIKey()
-	// httpsURL := https_endpoint + apiKey
-
-	// tokenAddress := cfg.GetApiTokenAddress()
-	// contractAddress := common.HexToAddress(tokenAddress)
-
-	// client_https, err := ethclient.Dial(httpsURL)
-	// if err != nil {
-	// 	log.Fatalf("Failed to connect to the Ethereum client: %v", err)
-	// }
 	client_https := cfg.GetHttpsClient()
 
 	contractAddress := cfg.GetContractAddress()
@@ -66,10 +56,15 @@ func FetchMissedBlocks(cfg config.Config) {
 		log.Fatalf("Failed to filter Transfer events: %v", err)
 	}
 
+	blockHash := models.BlockHash{
+		BlockNumber: nil,
+		Timestamp:   nil,
+	}
+
 	log.Println("Transfer Events:")
 	for iter.Next() {
 		event := iter.Event
 
-		utils.ProcessTransferEvent(event, filterer, database)
+		utils.ProcessTransferEvent(event, filterer, database, &blockHash, client_https)
 	}
 }

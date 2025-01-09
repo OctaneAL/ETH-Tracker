@@ -7,6 +7,7 @@ import (
 	"github.com/OctaneAL/ETH-Tracker/internal/config"
 	"github.com/OctaneAL/ETH-Tracker/internal/data/pg"
 	"github.com/OctaneAL/ETH-Tracker/internal/erc20"
+	"github.com/OctaneAL/ETH-Tracker/internal/models"
 	"github.com/OctaneAL/ETH-Tracker/internal/service/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
@@ -35,23 +36,6 @@ type EventData struct {
 }
 
 func SubscribeToLogs(cfg config.Config) {
-	// ws_endpoint := cfg.GetInfuraWsEndpoint()
-	// https_endpoint := cfg.GetInfuraHttpSsEndpoint()
-
-	// apiKey := cfg.GetInfuraAPIKey()
-
-	// tokenAddress := cfg.GetApiTokenAddress()
-
-	// websocketURL := ws_endpoint + apiKey
-	// httpsURL := https_endpoint + apiKey
-
-	// client_ws, err := ethclient.Dial(websocketURL)
-	// if err != nil {
-	// 	log.Fatalf("Failed to connect to the Ethereum client: %v", err)
-	// }
-
-	// contractAddress := common.HexToAddress(tokenAddress)
-
 	client_ws := cfg.GetWsClient()
 
 	contractAddress := cfg.GetContractAddress()
@@ -63,12 +47,24 @@ func SubscribeToLogs(cfg config.Config) {
 
 	database := pg.NewMasterQ(cfg.DB())
 
+	lastTransaction, err := database.Trans().GetLastRecord()
+	if err != nil {
+		log.Fatalf("Failed to get last transaction: %v", err)
+	}
+	blockFetchStart := uint64(lastTransaction.BlockNumber)
+
 	transferChan := make(chan *erc20.StorageTransfer)
 	subscription, err := filterer.WatchTransfer(&bind.WatchOpts{
+		Start:   &blockFetchStart, // Start Watching from the last added block
 		Context: context.Background(),
 	}, transferChan, nil, nil)
 	if err != nil {
 		log.Fatalf("Failed to watch Transfer events: %v", err)
+	}
+
+	blockHash := models.BlockHash{
+		BlockNumber: nil,
+		Timestamp:   nil,
 	}
 
 	go func() {
@@ -78,7 +74,7 @@ func SubscribeToLogs(cfg config.Config) {
 				log.Printf("Subscription error: %v", err)
 				return
 			case event := <-transferChan:
-				utils.ProcessTransferEvent(event, filterer, database)
+				utils.ProcessTransferEvent(event, filterer, database, &blockHash, client_ws)
 			}
 		}
 	}()

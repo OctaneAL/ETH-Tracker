@@ -1,14 +1,18 @@
 package utils
 
 import (
+	"context"
 	"log"
+	"math/big"
 	"time"
 
 	"github.com/OctaneAL/ETH-Tracker/internal/data"
 	"github.com/OctaneAL/ETH-Tracker/internal/erc20"
+	"github.com/OctaneAL/ETH-Tracker/internal/models"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-func ProcessTransferEvent(event *erc20.StorageTransfer, filterer *erc20.StorageFilterer, database data.MasterQ) {
+func ProcessTransferEvent(event *erc20.StorageTransfer, filterer *erc20.StorageFilterer, database data.MasterQ, blockHash *models.BlockHash, client *ethclient.Client) {
 	log.Printf("Transfer event received: From %s, To %s, Value %d, Block %d",
 		event.From.Hex(), event.To.Hex(), event.Value, event.Raw.BlockNumber)
 
@@ -17,19 +21,23 @@ func ProcessTransferEvent(event *erc20.StorageTransfer, filterer *erc20.StorageF
 		log.Fatalf("Failed to Parse Tranfer: %v", err)
 	}
 
-	// Takes too much time
+	// Fetch block timestamp
 
-	// blockNumber := big.NewInt(int64(event.Raw.BlockNumber))
-	// block, err := client_https.BlockByNumber(context.Background(), blockNumber)
-	// if err != nil {
-	// 	log.Printf("Failed to fetch block: %v", err)
-	// 	continue
-	// }
-
-	// timestamp := time.Unix(int64(block.Time()), 0)
-	// log.Printf("Timestamp for transfer: %s\n", timestamp)
+	blockNumber := big.NewInt(int64(event.Raw.BlockNumber))
 
 	timestamp := time.Now()
+
+	if blockHash.BlockNumber == nil || (blockHash.BlockNumber.Uint64() != blockNumber.Uint64()) {
+		block, err := client.BlockByNumber(context.Background(), blockNumber)
+		if err != nil {
+			log.Printf("Failed to fetch block: %v", err)
+		} else {
+			timestamp = time.Unix(int64(block.Time()), 0)
+		}
+
+		blockHash.BlockNumber = blockNumber
+		blockHash.Timestamp = &timestamp
+	}
 
 	transaction := data.Transaction{
 		BalanceNumeric:   transactionDetails.Value.String(),
@@ -38,7 +46,7 @@ func ProcessTransferEvent(event *erc20.StorageTransfer, filterer *erc20.StorageF
 		TransactionHash:  event.Raw.TxHash.String(),
 		TransactionIndex: int64(event.Raw.TxIndex),
 		BlockNumber:      int64(event.Raw.BlockNumber),
-		Timestamp:        timestamp,
+		Timestamp:        *blockHash.Timestamp,
 	}
 
 	if transaction.BalanceNumeric != "0" {

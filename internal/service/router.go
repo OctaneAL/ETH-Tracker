@@ -16,7 +16,6 @@ func (s *service) router(cfg config.Config) chi.Router {
 		ape.LoganMiddleware(s.log),
 		ape.CtxMiddleware(
 			handlers.CtxLog(s.log),
-			// handlers.CtxDB(context.Background(), s.db),
 			handlers.CtxDB(pg.NewMasterQ(cfg.DB())),
 		),
 	)
